@@ -3,10 +3,10 @@
 import TonWeb from "tonweb";
 import tonMnemonic from "tonweb-mnemonic";
 import fs from "fs";
+import { Cell } from "ton";
 // import bip39 from "bip39";
 
 const nacl = TonWeb.utils.nacl;
-const DEFAULT_WALLET_VERSION = 'v3R2';
 
 const WALLET_VERSIONS = ['simpleR1', 'simpleR2', 'simpleR3', 'v2R1', 'v2R2', 'v3R1', 'v3R2', 'v4R1', 'v4R2'];
 
@@ -28,16 +28,13 @@ async function mnemonic2PrivateKey(mnemonicWords) {
     console.log("PublicKey: " + "\n" + publicKeyHex + "\n");
     const privateKeyBase64 = TonWeb.utils.bytesToBase64(keyPair.secretKey.slice(0, 32));
     console.log("PrivateKey: " + "\n" + privateKeyBase64 + "\n");
-    // fs.writeFileSync("key.pk", keyPair.secretKey.slice(0, 32));
     fs.writeFileSync("key.pk", TonWeb.utils.base64ToBytes(privateKeyBase64));
     console.log("Private key generated at " + process.cwd() + "/key.pk \n")
-    return [publicKeyHex, privateKeyBase64, keyPair.publicKey];
+    return [publicKeyHex, privateKeyBase64, keyPair.publicKey, keyPair.secretKey];
 }
 
 async function getWalletAddress(publicKey, wc, walletVersion) {
     const ton = new TonWeb();
-    // const mainnetRpc = 'https://toncenter.com/api/v2/jsonRPC';
-    // const ton = new TonWeb(new TonWeb.HttpProvider(mainnetRpc));
     const WalletClass = ton.wallet.all[walletVersion];
     const walletContract = new WalletClass(ton.provider, {
         publicKey: publicKey,
@@ -48,16 +45,32 @@ async function getWalletAddress(publicKey, wc, walletVersion) {
 }
 
 (async () => {
-    const wc = process.argv[2]
-    const mnemonicWords = process.argv.slice(3);
-    // if (!bip39.validateMnemonic(mnemonicWords.join(" "))) {
-    //     console.error("Validation Failed");
-    // }
-    console.log(mnemonicWords);
-    console.log();
-    const res = await mnemonic2PrivateKey(mnemonicWords);
+    const action = process.argv[2];
+    
+    if (action === 'fetch') { // fetch wallet
+        const wc = process.argv[3]
+        const mnemonicWords = process.argv.slice(4);
+        // if (!bip39.validateMnemonic(mnemonicWords.join(" "))) {
+        //     console.error("Validation Failed");
+        // }
+        console.log(mnemonicWords);
+        console.log();
+        const res = await mnemonic2PrivateKey(mnemonicWords);
 
-    WALLET_VERSIONS.forEach(async walletVersion => {
-        await getWalletAddress(res[2], parseInt(wc), walletVersion);
-    });
+        WALLET_VERSIONS.forEach(async walletVersion => {
+            await getWalletAddress(res[2], parseInt(wc), walletVersion);
+        });
+    } else if (action === 'parse') { // parse transfer transaction
+        const dest = process.argv[3]
+        const data = await fs.readFileSync(dest);
+        const myCell = Cell.fromBoc(data);
+        const slice = myCell[0].beginParse();
+        const cellRef = slice.readRef();
+        const flags = cellRef.readUint(6);  // flags
+        console.log('flags', flags.toString(16));
+        let address = cellRef.readAddress();  // destation address
+        console.log(address?.toFriendly());
+        let amount = cellRef.readCoins()   // amount
+        console.log(amount.toString(10));
+    }
 })();

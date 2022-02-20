@@ -4,7 +4,6 @@
   "description": "",
   "main": "./src/run.js",
   "type": "module",
-  "devDependencies": {},
   "scripts": {
     "start": "node src/run.js"
   },
@@ -13,6 +12,7 @@
   "license": "MIT",
   "dependencies": {
     "fs": "^0.0.1-security",
+    "ton": "^9.1.0",
     "tonweb": "^0.0.28",
     "tonweb-mnemonic": "^1.0.0"
   }
